@@ -3,10 +3,16 @@ import numpy as np
 import tensorflow.keras as K
 import mlflow.tensorflow
 import sys
+import logging
+
+
 # mlflow server --backend-store-uri mlruns/ --default-artifact-root mlruns/ --host 0.0.0.0 --port 5000
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig(level=logging.WARN)
+    logger = logging.getLogger(__name__)
     # mlflow
     mlflow.tensorflow.autolog()
 
@@ -19,19 +25,23 @@ if __name__ == '__main__':
     X_cols = ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare']
     Y_cols = ['Survived']
 
-    data = pd.read_csv('data/titanic/train.csv', usecols=train_cols)
+    data = pd.read_csv('../data/titanic/train.csv', usecols=train_cols)
     data['Sex_b'] = pd.factorize(data.Sex)[0]
     data = data.drop(['Sex'], axis=1)
     data = data.rename(columns={"Sex_b": "Sex"})
 
-    test = pd.read_csv('data/titanic/test.csv', usecols=test_cols)
+    test = pd.read_csv('../data/titanic/test.csv', usecols=test_cols)
     test['Sex_b'] = pd.factorize(test.Sex)[0]
     test = test.drop(['Sex'], axis=1)
     test = test.rename(columns={"Sex_b": "Sex"})
 
-    # filling na values with mean
+    # filling train na values with mean
     column_means = data.mean()
     data = data.fillna(column_means)
+
+    # filling test na values with mean
+    column_means = test.mean()
+    test = test.fillna(column_means)
 
     input_data = np.array(data[X_cols])
     label_date = np.array(data[Y_cols])

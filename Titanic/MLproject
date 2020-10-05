@@ -1,0 +1,10 @@
+name: titanic
+
+conda_env: titanic.yaml
+
+entry_points:
+  main:
+    parameters:
+      alpha: {type: float, default: 0.5}
+      l1_ratio: {type: float, default: 0.1}
+    command: "python model/model.py {alpha} {l1_ratio}"
