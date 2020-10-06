@@ -1,1 +1,1 @@
-README
+"../data/titanic.zip" "false" "[256, 128]" "0.05" "0.0"
