@@ -5,10 +5,6 @@ import warnings
 from sklearn.tree import DecisionTreeClassifier
 
 warnings.filterwarnings('ignore')
-from sklearn.metrics import mean_squared_error
-
-from sklearn.preprocessing import StandardScaler, PowerTransformer
-from sklearn.compose import TransformedTargetRegressor
 from sklearn.pipeline import FeatureUnion, Pipeline, make_pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -16,9 +12,13 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+
 import typer
 import logging
 import zipfile
+
+from keras_model import create_model
 
 
 def load_data(zipfolder, filename, cols):
@@ -155,17 +155,23 @@ if __name__ == '__main__':
     # # print('_' * 40)
     # X_test.info()
 
+    # ********************
+    # Using keras model
+    # wrap the model using the function you created
+    clf = KerasClassifier(build_fn=create_model, verbose=1, epochs=50, data={'data': []})
+    # ****************************************************
+
     full_pipeline_m = Pipeline(steps=[('full_pipeline', full_pipeline),
-                                      ('model', LinearRegression())])
+                                      ('model', clf)])
 
     # Can call fit on it just like any other pipeline
     trained = full_pipeline_m.fit(X_train, y_train)
 
     # Can predict with it like any other pipeline
     y_pred = full_pipeline_m.predict(X_test)
-    print(y_pred)
-    print(40*'*')
+    n_corr = np.sum(y_pred[:, 0] == y_test)
+    print(f'Correct percentage: {n_corr / len(y_test)}')
     # print accuracy
-    acc_decision_tree_test = \
-        round(trained.score(X_test, y_test) * 100, 2)
-    print(acc_decision_tree_test)
+    # accuracy= \
+    #     round(trained.score(X_test, y_test) * 100, 2)
+    # print(acc_decision_tree_test)
