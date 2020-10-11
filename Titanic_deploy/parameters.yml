@@ -1,0 +1,9 @@
+label: label
+train_size: 0.8
+
+# model params
+NN:
+  lr: 0.005
+  l1: 0.005
+  epochs: 50
+  batch: 32

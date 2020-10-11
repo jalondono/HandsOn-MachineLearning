@@ -1,6 +1,12 @@
 import numpy as np
 import pandas as pd
 import warnings
+import typer
+import yaml
+import logging
+import zipfile
+import mlflow.sklearn
+from urllib.parse import urlparse
 
 from sklearn.tree import DecisionTreeClassifier
 
@@ -14,12 +20,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
-
-import typer
-import logging
-import zipfile
-import mlflow.sklearn
-from urllib.parse import urlparse
 
 from keras_model import create_model
 
@@ -151,12 +151,56 @@ def build_pipeline(num_cols, cat_cols):
     return preprocess_pipeline
 
 
-if __name__ == '__main__':
+def choose_model(model_name, args):
+    """
+    load a model
+    :param args:
+    :param model_name: name of the model
+    :return: a model
+    """
+    if model_name == "NN":
+        # ********************
+        # load keras model
+        # wrap the model using the function you created
+        clf = KerasClassifier(build_fn=create_model, verbose=1,
+                              epochs=args['epochs'],
+                              data={'data': args})
+        # ****************************************************
+        return clf
+    if model_name == "LR":
+        return LinearRegression()
+
+    if model_name == "TD":
+        return DecisionTreeClassifier(random_state=42)
+
+
+def load_hyperparams():
+    """
+    load the hyper params from a yml file
+    :param args: dictionary with the data
+    :return: a dictionary with hyper params
+    """
+    with open("parameters.yml", "r") as f:
+        params = yaml.safe_load(f)
+    return params
+
+
+app = typer.Typer()
+
+
+@app.command(context_settings=dict(allow_extra_args=True, ignore_unknown_options=True))
+def main(
+        ctx: typer.Context,
+        model_type: str = "NN",
+        data_path: str = "data/titanic.zip",
+        debug: bool = False,
+        toy: bool = False
+):
     data_cols = ['Survived', 'Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare']
     cat_cols = ['Pclass', 'Sex']
     num_cols = ['Age', 'SibSp', 'Parch', 'Fare']
 
-    data = load_data('data/titanic.zip', filename='train.csv', cols=data_cols)
+    data = load_data(data_path, filename='train.csv', cols=data_cols)
     X = data.drop('Survived', axis=1)
     # You can covert the target variable to numpy
     y = data['Survived'].values
@@ -164,18 +208,14 @@ if __name__ == '__main__':
         full_pipeline = build_pipeline(num_cols, cat_cols)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        # X_train.info()
-        # # print('_' * 40)
-        # X_test.info()
-
         # ********************
-        # Using keras model
-        # wrap the model using the function you created
-        clf = KerasClassifier(build_fn=create_model, verbose=1, epochs=50, data={'data': []})
-        # ****************************************************
+        # load the model
+        params = load_hyperparams()
+        model_params = params['NN']
+        model = choose_model(model_type, model_params)
 
         full_pipeline_m = Pipeline(steps=[('full_pipeline', full_pipeline),
-                                          ('model', clf)])
+                                          ('model', model)])
 
         # Can call fit on it just like any other pipeline
         trained = full_pipeline_m.fit(X_train, y_train)
@@ -210,3 +250,7 @@ if __name__ == '__main__':
             mlflow.sklearn.log_model(0.005, "model", registered_model_name="Neural_Network")
         else:
             mlflow.sklearn.log_model(0.005, "model")
+
+
+if __name__ == "__main__":
+    app()
