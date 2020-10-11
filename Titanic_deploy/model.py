@@ -11,14 +11,27 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
 import typer
 import logging
 import zipfile
+import mlflow.sklearn
+from urllib.parse import urlparse
 
 from keras_model import create_model
+
+logging.basicConfig(level=logging.WARN)
+logger = logging.getLogger(__name__)
+
+
+def eval_metrics(actual, pred):
+    rmse = np.sqrt(mean_squared_error(actual, pred))
+    mae = mean_absolute_error(actual, pred)
+    r2 = r2_score(actual, pred)
+    return rmse, mae, r2
 
 
 def load_data(zipfolder, filename, cols):
@@ -147,31 +160,53 @@ if __name__ == '__main__':
     X = data.drop('Survived', axis=1)
     # You can covert the target variable to numpy
     y = data['Survived'].values
+    with mlflow.start_run():
+        full_pipeline = build_pipeline(num_cols, cat_cols)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    full_pipeline = build_pipeline(num_cols, cat_cols)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        # X_train.info()
+        # # print('_' * 40)
+        # X_test.info()
 
-    # X_train.info()
-    # # print('_' * 40)
-    # X_test.info()
+        # ********************
+        # Using keras model
+        # wrap the model using the function you created
+        clf = KerasClassifier(build_fn=create_model, verbose=1, epochs=50, data={'data': []})
+        # ****************************************************
 
-    # ********************
-    # Using keras model
-    # wrap the model using the function you created
-    clf = KerasClassifier(build_fn=create_model, verbose=1, epochs=50, data={'data': []})
-    # ****************************************************
+        full_pipeline_m = Pipeline(steps=[('full_pipeline', full_pipeline),
+                                          ('model', clf)])
 
-    full_pipeline_m = Pipeline(steps=[('full_pipeline', full_pipeline),
-                                      ('model', clf)])
+        # Can call fit on it just like any other pipeline
+        trained = full_pipeline_m.fit(X_train, y_train)
 
-    # Can call fit on it just like any other pipeline
-    trained = full_pipeline_m.fit(X_train, y_train)
+        # Can predict with it like any other pipeline
+        y_pred = full_pipeline_m.predict(X_test)
+        n_corr = np.sum(y_pred[:, 0] == y_test)
+        print(f'Correct percentage: {n_corr / len(y_test)}')
+        # print accuracy
+        # accuracy= \
+        #     round(trained.score(X_test, y_test) * 100, 2)
+        # print(acc_decision_tree_test)
 
-    # Can predict with it like any other pipeline
-    y_pred = full_pipeline_m.predict(X_test)
-    n_corr = np.sum(y_pred[:, 0] == y_test)
-    print(f'Correct percentage: {n_corr / len(y_test)}')
-    # print accuracy
-    # accuracy= \
-    #     round(trained.score(X_test, y_test) * 100, 2)
-    # print(acc_decision_tree_test)
+        # ********************************************************
+        # mlflow log params
+        (rmse, mae, r2) = eval_metrics(y_test, y_pred[:, 0])
+        mlflow.log_param("alpha", 0.005)
+        mlflow.log_param("l1_ratio", 0)
+        mlflow.log_metric("rmse", rmse)
+        mlflow.log_metric("r2", r2)
+        mlflow.log_metric("mae", mae)
+
+        tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
+
+        # Model registry does not work with file store
+        if tracking_url_type_store != "file":
+
+            # Register the model
+            # There are other ways to use the Model Registry, which depends on the use case,
+            # please refer to the doc for more information:
+            # https://mlflow.org/docs/latest/model-registry.html#api-workflow
+            mlflow.sklearn.log_model(0.005, "model", registered_model_name="Neural_Network")
+        else:
+            mlflow.sklearn.log_model(0.005, "model")
