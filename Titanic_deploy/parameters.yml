@@ -4,6 +4,13 @@ train_size: 0.8
 # model params
 NN:
   lr: 0.005
-  l1: 0.005
-  epochs: 50
+  l1: 0
+  epochs: 80
   batch: 32
+  layers: [256, 128]
+
+classifier:
+  epochs: 300
+  batch_size: 125
+  shuffle: True
+  verbose: False
