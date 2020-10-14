@@ -5,19 +5,16 @@ import pandas as pd
 
 
 def load_model():
-    data_path = 'data/titanic.zip',
-    name_file = 'test.csv',
-    modelfile = '/home/jalondono/Holberton/HandsOn-MachineLearning/Titanic_deploy/mlruns/0' \
-                '/c87244e5ca5f44848a6e99e68e80a37d/artifacts/model/model.pkl'
+    modelfile = 'src/model.pkl'
     # open a file, where you stored the pickled data
     file = open(modelfile, 'rb')
 
-    # load the model
     model = pickle.load(file)
+    file.close()
+    print(model)
+    return model
 
     # close the file
-    file.close()
-    return model
 
 
 def predict(model, df):
@@ -44,11 +41,24 @@ def predict(model, df):
 
 
 app = FastAPI()
-model = load_model()
+# model = load_model()
 
 
-@app.post("/")
+# Api root or home endpoint
+@app.get('/')
+@app.get('/home')
+def read_home():
+    """
+    Home endpoint which can be used to test the availability
+    of the application.
+    :return: Dict with key 'message' and value 'API live!'
+    """
+    return {'message': 'API live!'}
+
+
+@app.post("/api")
 async def api_model(request: Request):
+    model = load_model()
     data = await request.json()
     data = data["data"]
     df = pd.DataFrame(data)
@@ -57,4 +67,4 @@ async def api_model(request: Request):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
