@@ -30,13 +30,17 @@ def predict(model, df):
     data_pred = df.copy()
     data_pred['Survived'] = y_pred
     print(data_pred[['Name', 'Survived']].head(20))
+    data_json = pd.DataFrame.to_dict(data_pred[['Name', 'Survived']])
 
     total = data_pred.shape[0]
     survived = sum(data_pred['Survived'] == 1)
     percentage = round(100 * survived / total, 2)
 
     print(f"Survived: {survived}/{total} or {percentage}%")
-    return {"predictions": {"total": total, "survivors": survived, "Percentage": percentage}}
+    return {"predictions": {"Survivors": data_json,
+                            "Number_of_survivors": survived,
+                            "Percentage": percentage,
+                            "Number_of_people": total}}
 
 
 app = FastAPI()
