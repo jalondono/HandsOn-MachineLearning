@@ -8,7 +8,7 @@
 
 
 ## Authors
-**Solution:**Juan Alberto Londono juanlondon151776@hotmail.com  @jalondono
+**Solution:** Juan Alberto Londono juanlondon151776@hotmail.com  @jalondono
 **Problem statement:** Cristian García
 
 ## Motivation and Goal
